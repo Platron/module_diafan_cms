@@ -29,15 +29,15 @@ class Payment_platron_model extends Diafan
 		$strLang = 'en';
 		if($this->diafan->_languages->site)
 			$strLang = 'ru';
-		
+
 		$strDescription = '';
-		foreach($pay['details']['goods'] as $arrProduct){
+		foreach(array_merge($pay['details']['goods'], $pay['details']['additional']) as $arrProduct){
 			$strDescription .= $arrProduct['name'];
 			if($arrProduct['count'] > 1)
 				$strDescription .= "*".$arrProduct['count'];
 			$strDescription .= "; ";
 		}
-		
+
 		foreach($pay['details']['additional'] as $arrProduct)
 			$strDescription .= $arrProduct['name']."; ";
 		
@@ -46,7 +46,7 @@ class Payment_platron_model extends Diafan
 		
 		if(strlen($strDescription) > 250)
 			$strDescription = substr($strDescription, 0, 250)."...";
-		
+
 		$arrFields = array(
 			'pg_merchant_id'		=> $params['platron_merchant_id'],
 			'pg_order_id'			=> $pay['id'],
@@ -80,9 +80,83 @@ class Payment_platron_model extends Diafan
 		if(!empty($params['platron_payment_system']))
 			$arrFields['pg_payment_system'] = $params['platron_payment_system'];
 
-		$arrFields['pg_sig'] = PG_Signature::make('payment.php', $arrFields, $params['platron_secret_key']);
+
+		// OFD
+		$arrFields['pg_sig'] = PG_Signature::make('init_payment.php', $arrFields, $params['platron_secret_key']);
+
+	 	$response = file_get_contents('https://www.platron.ru/init_payment.php?' . http_build_query($arrFields));
+ 		$responseElement = new SimpleXMLElement($response);
+
+	 	$checkResponse = PG_Signature::checkXML('init_payment.php', $responseElement, $params['platron_secret_key']);
+
+    	if ($checkResponse && (string)$responseElement->pg_status == 'ok') {
+
+    		if ($params['platron_create_ofd_check'] == 1) {
+
+    			$paymentId = (string)$responseElement->pg_payment_id;
+
+    	        $ofdReceiptItems = array();
 		
-		echo "<form action='https://platron.ru/payment.php' method='POST' name='platronform' id='platronform'>";
+    			foreach($pay['details']['goods'] as $arrProduct) {
+					if ($arrProduct['summ'] > 0) {
+	    	            $ofdReceiptItem = new OfdReceiptItem();
+    		            $ofdReceiptItem->label = $arrProduct['name'];
+    		            $ofdReceiptItem->amount = round($arrProduct['summ'], 2);
+    	    	        $ofdReceiptItem->price = round($arrProduct['price'], 2);
+    	        	    $ofdReceiptItem->quantity = $arrProduct['count'];
+    	            	$ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
+	    	            $ofdReceiptItems[] = $ofdReceiptItem;
+					}
+        		}
+
+    			foreach($pay['details']['additional'] as $arrProduct) {
+					if ($arrProduct['summ'] > 0) {
+	    	            $ofdReceiptItem = new OfdReceiptItem();
+	    	            $ofdReceiptItem->label = $arrProduct['name'];
+	    	            $ofdReceiptItem->amount = round($arrProduct['summ'], 2);
+	    	            $ofdReceiptItem->price = round($arrProduct['summ'], 2);
+	    	            $ofdReceiptItem->quantity = 1;
+	    	            $ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
+	    	            $ofdReceiptItems[] = $ofdReceiptItem;
+					}
+        		}
+
+				if(!empty($pay["details"]["delivery"]))
+				{
+					$shipping = $pay["details"]["delivery"]["summ"];
+
+	    	   		if ($shipping > 0) {
+	    				$ofdReceiptItem = new OfdReceiptItem();
+    					$ofdReceiptItem->label = $pay["details"]["delivery"]["name"] ? $pay["details"]["delivery"]["name"] : $this->diafan->_('Доставка', false);
+    					$ofdReceiptItem->amount = round($shipping, 2);
+    					$ofdReceiptItem->price = round($shipping, 2);
+    					$ofdReceiptItem->quantity = 1;
+    					$ofdReceiptItem->vat = '18'; // fixed
+	    				$ofdReceiptItems[] = $ofdReceiptItem;
+    	   			}
+				}
+
+    			$ofdReceiptRequest = new OfdReceiptRequest($params['platron_merchant_id'], $paymentId);
+    			$ofdReceiptRequest->items = $ofdReceiptItems;
+    			$ofdReceiptRequest->sign($params['platron_secret_key']);
+
+    			$responseOfd = file_get_contents('https://www.platron.ru/receipt.php?' . http_build_query($ofdReceiptRequest->requestArray()));
+    			$responseElementOfd = new SimpleXMLElement($responseOfd);
+    			if ((string)$responseElementOfd->pg_status != 'ok') {
+					$result["text"] = $this->diafan->_('Platron create OFD check error. ' . $responseElementOfd->pg_error_description);
+					return $result;
+    			}
+
+    		}
+
+		} else {
+				$result["text"] = $this->diafan->_('Platron init payment error. ' . $responseElement->pg_error_description);
+				return $result;
+	 	}
+
+		$arrFields['pg_sig'] = PG_Signature::make('payment.php', $form_fields, $params['platron_secret_key']);
+
+		echo "<form action='".(string)$responseElement->pg_redirect_url."' method='POST' name='platronform' id='platronform'>";
 
 		foreach ($arrFields as $name => $value)
 		{
