@@ -28,6 +28,20 @@ class Payment_platron_admin
                 'platron_lifetime' => 'Время жизни счета в минутах. Максимально 7 дней',
 				'platron_test' => array('name' => 'Тестовый режим', 'type' => 'checkbox'),
 				'platron_payment_system' => 'Название платежной системы, на которую указывает метод',
+				'platron_create_ofd_check' => array('name' => 'Создавать чек в ОФД', 'type' => 'checkbox', 'help' => '54-ФЗ'),
+				'platron_ofd_vat_type' => array(
+					'name' => 'Тип НДС для ОФД',
+					'type' => 'select',
+					'select' => array(
+						'0' => '0%',
+						'10' => '10%',
+						'18' => '18%',
+						'110' => '10/110',
+						'118' => '18/118',
+					),
+					'help' => 'НДС для товаров при создании чека в ОФД.',
+				),
+
 			)
 		);
 	}
