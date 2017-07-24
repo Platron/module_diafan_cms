@@ -101,7 +101,7 @@ class Payment_platron_model extends Diafan
 					if ($arrProduct['summ'] > 0) {
 	    	            $ofdReceiptItem = new OfdReceiptItem();
     		            $ofdReceiptItem->label = $arrProduct['name'];
-    		            $ofdReceiptItem->amount = round($arrProduct['summ'], 2);
+    		            #$ofdReceiptItem->amount = round($arrProduct['summ'], 2);
     	    	        $ofdReceiptItem->price = round($arrProduct['price'], 2);
     	        	    $ofdReceiptItem->quantity = $arrProduct['count'];
     	            	$ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
@@ -113,7 +113,7 @@ class Payment_platron_model extends Diafan
 					if ($arrProduct['summ'] > 0) {
 	    	            $ofdReceiptItem = new OfdReceiptItem();
 	    	            $ofdReceiptItem->label = $arrProduct['name'];
-	    	            $ofdReceiptItem->amount = round($arrProduct['summ'], 2);
+	    	            #$ofdReceiptItem->amount = round($arrProduct['summ'], 2);
 	    	            $ofdReceiptItem->price = round($arrProduct['summ'], 2);
 	    	            $ofdReceiptItem->quantity = 1;
 	    	            $ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
@@ -128,7 +128,7 @@ class Payment_platron_model extends Diafan
 	    	   		if ($shipping > 0) {
 	    				$ofdReceiptItem = new OfdReceiptItem();
     					$ofdReceiptItem->label = $pay["details"]["delivery"]["name"] ? $pay["details"]["delivery"]["name"] : $this->diafan->_('Доставка', false);
-    					$ofdReceiptItem->amount = round($shipping, 2);
+    					#$ofdReceiptItem->amount = round($shipping, 2);
     					$ofdReceiptItem->price = round($shipping, 2);
     					$ofdReceiptItem->quantity = 1;
     					$ofdReceiptItem->vat = '18'; // fixed
