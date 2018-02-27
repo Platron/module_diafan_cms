@@ -131,7 +131,7 @@ class Payment_platron_model extends Diafan
     					$ofdReceiptItem->amount = round($shipping, 2);
     					$ofdReceiptItem->price = round($shipping, 2);
     					$ofdReceiptItem->quantity = 1;
-    					$ofdReceiptItem->vat = '18'; // fixed
+    					$ofdReceiptItem->vat = $params['platron_ofd_vat_type'] == 'none' ? 'none': 18;
 	    				$ofdReceiptItems[] = $ofdReceiptItem;
     	   			}
 				}
