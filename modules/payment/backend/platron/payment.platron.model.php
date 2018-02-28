@@ -143,15 +143,13 @@ class Payment_platron_model extends Diafan
     			$responseOfd = file_get_contents('https://www.platron.ru/receipt.php?' . http_build_query($ofdReceiptRequest->requestArray()));
     			$responseElementOfd = new SimpleXMLElement($responseOfd);
     			if ((string)$responseElementOfd->pg_status != 'ok') {
-					$result["text"] = $this->diafan->_('Platron create OFD check error. ' . $responseElementOfd->pg_error_description);
-					return $result;
+				throw new Exception($this->diafan->_('Platron create OFD check error. ' . $responseElementOfd->pg_error_description));
     			}
 
     		}
 
 		} else {
-				$result["text"] = $this->diafan->_('Platron init payment error. ' . $responseElement->pg_error_description);
-				return $result;
+			throw new Exception($this->diafan->_('Platron init payment error. ' . $responseElement->pg_error_description));
 	 	}
 
 		$arrFields['pg_sig'] = PG_Signature::make('payment.php', $form_fields, $params['platron_secret_key']);
