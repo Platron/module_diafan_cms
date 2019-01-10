@@ -276,6 +276,7 @@ class OfdReceiptItem
 	public $price;
 	public $quantity;
 	public $vat;
+	public $type = 'product';
 
 	public function toArray()
 	{
@@ -285,6 +286,7 @@ class OfdReceiptItem
 			'pg_price' => $this->price,
 			'pg_quantity' => $this->quantity,
 			'pg_vat' => $this->vat,
+			'pg_type' => $this->type,
 		);
 	}
 }
