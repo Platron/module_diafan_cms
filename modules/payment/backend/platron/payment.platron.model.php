@@ -51,7 +51,7 @@ class Payment_platron_model extends Diafan
 			'pg_merchant_id'		=> $params['platron_merchant_id'],
 			'pg_order_id'			=> $pay['id'],
 			'pg_currency'			=> 'RUB',
-			'pg_amount'			=> sprintf('%0.2f',$pay['summ']),
+			'pg_amount'				=> sprintf('%0.2f',$pay['summ']),
 			'pg_lifetime'			=> isset($params['platron_lifetime'])?$params['platron_lifetime']*60:0,
 			'pg_testing_mode'		=> ($params['platron_test'])?1:0,
 			'pg_description'		=> $strDescription,
@@ -94,30 +94,30 @@ class Payment_platron_model extends Diafan
 
     			$paymentId = (string)$responseElement->pg_payment_id;
 
+    			$products = $this->clearFreeProducts($pay['details']['goods']);
+				$additionalProducts = $this->clearFreeProducts($pay['details']['additional']);
+
     	        $ofdReceiptItems = array();
-		
-    			foreach($pay['details']['goods'] as $arrProduct) {
-					if ($arrProduct['summ'] > 0) {
-	    	            $ofdReceiptItem = new OfdReceiptItem();
-    		            $ofdReceiptItem->label = $arrProduct['name'];
-    		            $ofdReceiptItem->amount = round($arrProduct['summ'], 2);
-    	    	        $ofdReceiptItem->price = round($arrProduct['price'], 2);
-    	        	    $ofdReceiptItem->quantity = $arrProduct['count'];
-    	            	$ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
-	    	            $ofdReceiptItems[] = $ofdReceiptItem;
-					}
+				if(!empty($pay['details']['discount'])){
+					$products = $this->addDiscountFromCartToProducts($products, $pay['details']['discount']);
+				}
+
+    			foreach($products as $arrProduct) {
+					$ofdReceiptItem = new OfdReceiptItem();
+					$ofdReceiptItem->label = $arrProduct['name'];
+					$ofdReceiptItem->price = $arrProduct['summ'];
+					$ofdReceiptItem->quantity = $arrProduct['count'];
+					$ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
+					$ofdReceiptItems[] = $ofdReceiptItem;
         		}
 
-    			foreach($pay['details']['additional'] as $arrProduct) {
-					if ($arrProduct['summ'] > 0) {
-	    	            $ofdReceiptItem = new OfdReceiptItem();
-	    	            $ofdReceiptItem->label = $arrProduct['name'];
-	    	            $ofdReceiptItem->amount = round($arrProduct['summ'], 2);
-	    	            $ofdReceiptItem->price = round($arrProduct['summ'], 2);
-	    	            $ofdReceiptItem->quantity = 1;
-	    	            $ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
-	    	            $ofdReceiptItems[] = $ofdReceiptItem;
-					}
+    			foreach($additionalProducts as $arrProduct) {
+					$ofdReceiptItem = new OfdReceiptItem();
+					$ofdReceiptItem->label = $arrProduct['name'];
+					$ofdReceiptItem->price = round($arrProduct['summ'], 2);
+					$ofdReceiptItem->quantity = 1;
+					$ofdReceiptItem->vat = $params['platron_ofd_vat_type'];
+					$ofdReceiptItems[] = $ofdReceiptItem;
         		}
 
 				if(!empty($pay["details"]["delivery"]))
@@ -127,11 +127,10 @@ class Payment_platron_model extends Diafan
 	    	   		if ($shipping > 0) {
 	    				$ofdReceiptItem = new OfdReceiptItem();
     					$ofdReceiptItem->label = $pay["details"]["delivery"]["name"] ? $pay["details"]["delivery"]["name"] : $this->diafan->_('Доставка', false);
-    					$ofdReceiptItem->amount = round($shipping, 2);
     					$ofdReceiptItem->price = round($shipping, 2);
     					$ofdReceiptItem->quantity = 1;
     					$ofdReceiptItem->vat = $params['platron_ofd_vat_type'] == 'none' ? 'none': 20;
-					$ofdReceiptItem->type = 'service';
+						$ofdReceiptItem->type = 'service';
 	    				$ofdReceiptItems[] = $ofdReceiptItem;
     	   			}
 				}
@@ -164,5 +163,58 @@ class Payment_platron_model extends Diafan
 		echo "<script type='text/javascript'>document.platronform.submit();</script>";
 		
 		exit;
+	}
+
+	/**
+	 * @param $products
+	 * @return array
+	 */
+	private function clearFreeProducts($products){
+		$notEmptyProducts = [];
+		foreach($products as $product){
+			if($product['summ'] > 0){
+				$notEmptyProducts[] = $product;
+			}
+		}
+		return $notEmptyProducts;
+	}
+
+	/**
+	 * @param $products
+	 * @param $discountPrice
+	 * @return array
+	 */
+	private function addDiscountFromCartToProducts($products, $discountPrice){
+		$discountedProducts = [];
+
+		$productNumber = 1;
+		$allProductPrice = $this->getAllProductPrice($products);
+		$discountPercent = $discountPrice * 100 / $allProductPrice;
+
+		$sharedDiscount = 0;
+		foreach($products as $product){
+			if($productNumber == count($products)){
+				/** Last amount */
+				$product['summ'] = round($product['summ'] - ($discountPrice - $sharedDiscount), 2);
+			}
+			else {
+				$product['summ'] = round($product['summ'] - ($product['summ'] * $discountPercent / 100), 2);
+			}
+			$discountedProducts[] = $product;
+			$sharedDiscount += $product['summ'];
+		}
+		return $discountedProducts;
+	}
+
+	/**
+	 * @param $products
+	 * @return float
+	 */
+	private function getAllProductPrice($products){
+		$summAllProducts = 0;
+		foreach($products as $product){
+			$summAllProducts += $product['summ'];
+		}
+		return $summAllProducts;
 	}
 }
